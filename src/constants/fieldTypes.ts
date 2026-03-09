@@ -10,7 +10,7 @@ import { mdiSignature } from '@mdi/js';
 import { mdiTuneVariant } from '@mdi/js';
 import { mdiToggleSwitch } from '@mdi/js';
 import { mdiMapMarker } from '@mdi/js';
-import { mdiLink, mdiEyeOff, mdiCellphone, mdiPalette, mdiIdCard } from '@mdi/js';
+import { mdiLink, mdiEyeOff, mdiCellphone, mdiPassportCheck, mdiIdCard } from '@mdi/js';
 import { mdiFolderPlus } from '@mdi/js';
 import { mdiBarcode } from '@mdi/js';
 
@@ -105,6 +105,13 @@ export const AVAILABLE_FIELDS = [
     icon: mdiBarcode,
     description: 'Captura de código de barras',
     preview: 'barcode-read'
+  },
+  {
+    label: 'Scanner de ID',
+    value: 'idscan',
+    icon: mdiPassportCheck,
+    description: 'Captura de ID',
+    preview: 'id-scan'
   },
   {
     label: 'Documento',

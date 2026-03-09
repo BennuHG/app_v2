@@ -7,8 +7,34 @@ const emit = defineEmits(['scanned', 'close']);
 
 const video = ref(null);
 const worker = ref(null);
+const scannedMessage = ref('');
+const results = ref([]);
 
 let stream = null;
+let intervalId = null;
+
+function cropMRZ(canvas) {
+  const width = canvas.width;
+  const height = canvas.height;
+  const mrzHeight = height * 0.3;
+
+  const cropCanvas = document.createElement('canvas');
+  cropCanvas.width = width;
+  cropCanvas.height = mrzHeight;
+  const ctx = cropCanvas.getContext('2d');
+  ctx.filter = 'grayscale(100%) contrast(200%)';
+  ctx.drawImage(canvas, 0, height - mrzHeight, width, mrzHeight, 0, 0, width, mrzHeight);
+
+  return cropCanvas;
+}
+
+function normalizeMrzLine(line, targetLen = 44) {
+  const charMap = { O: '0', I: '1', Z: '2', S: '5', G: '6', B: '8' };
+  let s = line.replace(/\s/g, '<').replace(/[^A-Z0-9<]/g, (c) => charMap[c] ?? '<');
+  if (s.length > targetLen) s = s.slice(0, targetLen);
+  else if (s.length < targetLen) s = s.padEnd(targetLen, '<');
+  return s;
+}
 
 async function captureFrame() {
   const canvas = document.createElement('canvas');
@@ -22,46 +48,31 @@ async function captureFrame() {
   return canvas;
 }
 
-function cropMRZ(canvas) {
-  const ctx = canvas.getContext('2d');
-  ctx.filter = 'grayscale(100%) contrast(200%)';
-
-  const width = canvas.width;
-  const height = canvas.height;
-
-  const mrzHeight = height * 0.3;
-
-  const imageData = ctx.getImageData(0, height - mrzHeight, width, mrzHeight);
-
-  const cropCanvas = document.createElement('canvas');
-  cropCanvas.width = width;
-  cropCanvas.height = mrzHeight;
-
-  cropCanvas.getContext('2d').putImageData(imageData, 0, 0);
-
-  return cropCanvas;
-}
-
 async function analyzeMrz() {
-  const frame = await captureFrame();
-  const mrzImage = cropMRZ(frame);
+  if (!video.value || !worker.value) return;
+  if (video.value.videoWidth === 0 || video.value.videoHeight === 0) return;
 
-  const {
-    data: { text }
-  } = await worker.value.recognize(mrzImage);
+  try {
+    const frame = await captureFrame();
+    const mrzImage = cropMRZ(frame);
 
-  console.log('OCR:', text);
+    const {
+      data: { text }
+    } = await worker.value.recognize(mrzImage);
 
-  const lines = text
-    .split('\n')
-    .map((l) => l.trim())
-    .filter((l) => l.length > 30);
+    const lines = text
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l.length >= 30)
+      .map((l) => normalizeMrzLine(l, l.length > 36 ? 44 : 30));
 
-  if (lines.length >= 2) {
-    const parsed = parse(lines.slice(0, 2));
-    console.log('Parsed MRZ:', parsed);
-
-    emit('scanned', parsed);
+    if (lines.length >= 2) {
+      const parsed = parse(lines.slice(0, 2));
+      results.value.push(parsed.documentNumber || JSON.stringify(parsed));
+      emit('scanned', { ...parsed, code: parsed.documentNumber || JSON.stringify(parsed) });
+    }
+  } catch (_) {
+    // parse() lanza si el formato no es válido; es esperado hasta que el OCR lea bien
   }
 }
 
@@ -74,31 +85,42 @@ onMounted(async () => {
     video.value.srcObject = stream;
     await video.value.play();
 
+    await new Promise((resolve) => {
+      if (video.value.videoWidth > 0) return resolve();
+      video.value.onloadedmetadata = resolve;
+    });
+
     worker.value = await createWorker('eng');
 
     await worker.value.setParameters({
       tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<'
     });
 
-    setInterval(analyzeMrz, 1500);
+    intervalId = setInterval(analyzeMrz, 1500);
   } catch (error) {
     console.error('Scanner error:', error);
+    scannedMessage.value = 'Error al iniciar el escáner';
   }
 });
 
 async function stopScanner() {
+  if (intervalId) {
+    clearInterval(intervalId);
+    intervalId = null;
+  }
   if (stream) {
     stream.getTracks().forEach((track) => track.stop());
+    stream = null;
   }
-
   if (worker.value) {
     await worker.value.terminate();
+    worker.value = null;
   }
-
   emit('close');
 }
 
 onBeforeUnmount(() => {
+  if (intervalId) clearInterval(intervalId);
   stopScanner();
 });
 </script>

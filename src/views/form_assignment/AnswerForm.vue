@@ -393,6 +393,21 @@
                                 />
                               </template>
                             </div>
+                            <div v-else-if="item.field.type === 'idscan'" class="d-flex flex-column align-stretch">
+                              <template v-if="idScanOpenFieldId !== item.field.id">
+                                <v-btn variant="outlined" color="primary" @click="openIdScanner(item.field.id)"> Escanear </v-btn>
+                                <div v-if="formData[item.field.id]" class="mt-2">
+                                  <v-chip color="success" size="small">{{ formData[item.field.id] }}</v-chip>
+                                </div>
+                              </template>
+                              <template v-else>
+                                <PassportRead
+                                  :field-id="item.field.id"
+                                  @scanned="(val) => handleIdScanned(item.field.id, val)"
+                                  @close="closeIdScanner()"
+                                />
+                              </template>
+                            </div>
 
                             <!-- Campo Checkbox -->
                             <div v-else-if="item.field.type === 'checkbox'">
@@ -861,6 +876,21 @@
                                             />
                                           </template>
                                         </div>
+                                        <div v-else-if="field.type === 'idscan'" class="d-flex flex-column align-stretch">
+                                          <template v-if="idScanOpenFieldId !== field.id">
+                                            <v-btn variant="outlined" color="primary" @click="openIdScanner(field.id)"> Escanear </v-btn>
+                                            <div v-if="formData[field.id]" class="mt-2">
+                                              <v-chip color="success" size="small">{{ formData[field.id] }}</v-chip>
+                                            </div>
+                                          </template>
+                                          <template v-else>
+                                            <PassportRead
+                                              :field-id="field.id"
+                                              @scanned="(val) => handleIdScanned(field.id, val)"
+                                              @close="closeIdScanner()"
+                                            />
+                                          </template>
+                                        </div>
 
                                         <!-- Campo Checkbox -->
                                         <div v-else-if="field.type === 'checkbox'">
@@ -1066,6 +1096,7 @@ import SignaturePad from '@/styles/SignaturePad.vue';
 import AddressAutocomplete from '@/utils/helpers/google/AddressAutocomplete.vue';
 import imageCompression from 'browser-image-compression';
 import BarCodeRead from '@/utils/helpers/BarCodeRead.vue';
+import PassportRead from '@/utils/helpers/PassportRead.vue';
 
 const toast = useToast();
 const router = useRouter();
@@ -1127,6 +1158,7 @@ function closeDocumentCamera() {
 }
 
 const barcodeOpenFieldId = ref(null);
+const idScanOpenFieldId = ref(null);
 
 function openBarcodeScanner(fieldId) {
   barcodeOpenFieldId.value = fieldId;
@@ -1136,12 +1168,28 @@ function closeBarcodeScanner() {
   barcodeOpenFieldId.value = null;
 }
 
+function openIdScanner(fieldId) {
+  idScanOpenFieldId.value = fieldId;
+}
+
+function closeIdScanner() {
+  idScanOpenFieldId.value = null;
+}
+
 function handleBarcodeScanned(fieldId, value) {
   const current = Array.isArray(formData[fieldId]) ? formData[fieldId] : [];
   formData[fieldId] = [...current, value]; // array
   bumpVersion(fieldId);
   toast.success('Código escaneado correctamente');
   closeBarcodeScanner();
+}
+
+function handleIdScanned(fieldId, value) {
+  const current = Array.isArray(formData[fieldId]) ? formData[fieldId] : [];
+  formData[fieldId] = [...current, value]; // array
+  bumpVersion(fieldId);
+  toast.success('ID escaneado correctamente');
+  closeIdScanner();
 }
 
 // --- INTEGRACIÓN: Dirección de geolocalización para campos scope ---

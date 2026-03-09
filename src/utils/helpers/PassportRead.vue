@@ -13,10 +13,10 @@ const results = ref([]);
 let stream = null;
 let intervalId = null;
 
-function cropMRZ(canvas) {
+function cropMRZ(canvas, useBottomPercent = 0.5) {
   const width = canvas.width;
   const height = canvas.height;
-  const mrzHeight = height * 0.3;
+  const mrzHeight = Math.floor(height * useBottomPercent);
 
   const cropCanvas = document.createElement('canvas');
   cropCanvas.width = width;
@@ -28,23 +28,40 @@ function cropMRZ(canvas) {
   return cropCanvas;
 }
 
-function normalizeMrzLine(line, targetLen = 44) {
-  const charMap = { O: '0', I: '1', Z: '2', S: '5', G: '6', B: '8' };
-  let s = line.replace(/\s/g, '<').replace(/[^A-Z0-9<]/g, (c) => charMap[c] ?? '<');
+function normalizeMrzLine(line, targetLen) {
+  let s = line.replace(/\s/g, '<').replace(/[^A-Z0-9<]/g, '<');
   if (s.length > targetLen) s = s.slice(0, targetLen);
   else if (s.length < targetLen) s = s.padEnd(targetLen, '<');
   return s;
 }
 
+function extractMrzLines(text) {
+  const rawLines = text
+    .split(/[\r\n]+/)
+    .map((l) =>
+      l
+        .trim()
+        .replace(/\s/g, '<')
+        .replace(/[^A-Z0-9<]/g, '<')
+    )
+    .filter((l) => l.length >= 20);
+
+  const lines = [];
+  for (const l of rawLines) {
+    if (l.length === 30) lines.push(normalizeMrzLine(l, 30));
+    else if (l.length === 36) lines.push(normalizeMrzLine(l, 36));
+    else if (l.length === 44) lines.push(normalizeMrzLine(l, 44));
+    else if (l.length > 44) lines.push(normalizeMrzLine(l.slice(0, 44), 44));
+    else if (l.length > 30) lines.push(normalizeMrzLine(l.slice(0, 30), 30));
+  }
+  return lines;
+}
+
 async function captureFrame() {
   const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-
   canvas.width = video.value.videoWidth;
   canvas.height = video.value.videoHeight;
-
-  ctx.drawImage(video.value, 0, 0);
-
+  canvas.getContext('2d').drawImage(video.value, 0, 0);
   return canvas;
 }
 
@@ -54,32 +71,53 @@ async function analyzeMrz() {
 
   try {
     const frame = await captureFrame();
-    const mrzImage = cropMRZ(frame);
+    const mrzImage = cropMRZ(frame, 0.5);
 
     const {
       data: { text }
     } = await worker.value.recognize(mrzImage);
 
-    const lines = text
-      .split('\n')
-      .map((l) => l.trim())
-      .filter((l) => l.length >= 30)
-      .map((l) => normalizeMrzLine(l, l.length > 36 ? 44 : 30));
-
-    if (lines.length >= 2) {
-      const parsed = parse(lines.slice(0, 2));
-      results.value.push(parsed.documentNumber || JSON.stringify(parsed));
-      emit('scanned', { ...parsed, code: parsed.documentNumber || JSON.stringify(parsed) });
+    if (import.meta.env.DEV && text?.trim()) {
+      console.log('[PassportRead] OCR:', text);
     }
-  } catch (_) {
-    // parse() lanza si el formato no es válido; es esperado hasta que el OCR lea bien
+
+    const lines = extractMrzLines(text || '');
+    if (lines.length < 2) return;
+
+    let parsed = null;
+
+    if (lines.length >= 3 && lines[0].length === 30 && lines[1].length === 30 && lines[2].length === 30) {
+      parsed = parse(lines.slice(0, 3));
+    } else if (lines.length >= 2 && lines[0].length === 44 && lines[1].length === 44) {
+      parsed = parse(lines.slice(0, 2));
+    } else if (lines.length >= 2 && lines[0].length === 36 && lines[1].length === 36) {
+      parsed = parse(lines.slice(0, 2));
+    } else if (lines.length >= 2 && lines[0].length === 30 && lines[1].length === 30) {
+      parsed = parse(lines.slice(0, 2));
+    }
+
+    if (parsed) {
+      const code = parsed.documentNumber || parsed.documentCode || JSON.stringify(parsed);
+      results.value.push(code);
+      emit('scanned', {
+        documentNumber: parsed.documentNumber,
+        format: parsed.format,
+        lastName: parsed.fields?.lastName,
+        firstName: parsed.fields?.firstName,
+        birthDate: parsed.fields?.birthDate,
+        expirationDate: parsed.fields?.expirationDate,
+        nationality: parsed.fields?.nationality
+      });
+    }
+  } catch (e) {
+    if (import.meta.env.DEV) console.warn('[PassportRead] parse error:', e.message);
   }
 }
 
 onMounted(async () => {
   try {
     stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment' }
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
     });
 
     video.value.srcObject = stream;
@@ -90,13 +128,12 @@ onMounted(async () => {
       video.value.onloadedmetadata = resolve;
     });
 
-    worker.value = await createWorker('eng');
-
+    worker.value = await createWorker('spa');
     await worker.value.setParameters({
       tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<'
     });
 
-    intervalId = setInterval(analyzeMrz, 1500);
+    intervalId = setInterval(analyzeMrz, 1200);
   } catch (error) {
     console.error('Scanner error:', error);
     scannedMessage.value = 'Error al iniciar el escáner';

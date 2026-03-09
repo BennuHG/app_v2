@@ -394,18 +394,74 @@
                               </template>
                             </div>
                             <div v-else-if="item.field.type === 'idscan'" class="d-flex flex-column align-stretch">
-                              <template v-if="idScanOpenFieldId !== item.field.id">
-                                <v-btn variant="outlined" color="primary" @click="openIdScanner(item.field.id)"> Escanear </v-btn>
-                                <div v-if="formData[item.field.id]" class="mt-2">
-                                  <v-chip color="success" size="small">{{ formData[item.field.id] }}</v-chip>
-                                </div>
-                              </template>
-                              <template v-else>
+                              <template v-if="idScanOpenFieldId === item.field.id">
                                 <PassportRead
                                   :field-id="item.field.id"
                                   @scanned="(val) => handleIdScanned(item.field.id, val)"
                                   @close="closeIdScanner()"
                                 />
+                              </template>
+                              <template v-else>
+                                <v-btn variant="outlined" color="primary" @click="openIdScanner(item.field.id)"> Escanear </v-btn>
+
+                                <template v-if="getIdScanData(item.field.id)">
+                                  <v-card variant="outlined" class="mt-3 pa-3">
+                                    <div class="text-caption text-medium-emphasis mb-2">Revisa y edita los datos del documento</div>
+                                    <v-text-field
+                                      v-model="formData[item.field.id].documentNumber"
+                                      label="Número de documento"
+                                      density="compact"
+                                      variant="outlined"
+                                      class="mb-2"
+                                      hide-details
+                                    />
+                                    <v-text-field
+                                      v-model="formData[item.field.id].lastName"
+                                      label="Apellidos"
+                                      density="compact"
+                                      variant="outlined"
+                                      class="mb-2"
+                                      hide-details
+                                    />
+                                    <v-text-field
+                                      v-model="formData[item.field.id].firstName"
+                                      label="Nombre(s)"
+                                      density="compact"
+                                      variant="outlined"
+                                      class="mb-2"
+                                      hide-details
+                                    />
+                                    <v-text-field
+                                      v-model="formData[item.field.id].birthDate"
+                                      label="Fecha de nacimiento (YYMMDD)"
+                                      density="compact"
+                                      variant="outlined"
+                                      placeholder="990326"
+                                      class="mb-2"
+                                      hide-details
+                                    />
+                                    <v-text-field
+                                      v-model="formData[item.field.id].expirationDate"
+                                      label="Fecha de vencimiento (YYMMDD)"
+                                      density="compact"
+                                      variant="outlined"
+                                      placeholder="271231"
+                                      class="mb-2"
+                                      hide-details
+                                    />
+                                    <v-text-field
+                                      v-model="formData[item.field.id].nationality"
+                                      label="Nacionalidad"
+                                      density="compact"
+                                      variant="outlined"
+                                      class="mb-2"
+                                      hide-details
+                                    />
+                                    <v-btn variant="text" size="small" color="primary" class="mt-1" @click="openIdScanner(item.field.id)">
+                                      Escanear de nuevo
+                                    </v-btn>
+                                  </v-card>
+                                </template>
                               </template>
                             </div>
 
@@ -1185,11 +1241,23 @@ function handleBarcodeScanned(fieldId, value) {
 }
 
 function handleIdScanned(fieldId, value) {
-  const current = Array.isArray(formData[fieldId]) ? formData[fieldId] : [];
-  formData[fieldId] = [...current, value]; // array
+  formData[fieldId] = {
+    documentNumber: value.documentNumber,
+    format: value.format ?? 'N/A',
+    lastName: value.lastName ?? 'N/A',
+    firstName: value.firstName ?? 'N/A',
+    birthDate: value.birthDate ?? 'N/A',
+    expirationDate: value.expirationDate ?? 'N/A',
+    nationality: value.nationality ?? 'N/A'
+  };
   bumpVersion(fieldId);
-  toast.success('ID escaneado correctamente');
+  toast.success('Documento escaneado. Puedes editar los campos si es necesario');
   closeIdScanner();
+}
+
+function getIdScanData(fieldId) {
+  const data = formData[fieldId];
+  return Array.isArray(data) ? data[0] : data;
 }
 
 // --- INTEGRACIÓN: Dirección de geolocalización para campos scope ---

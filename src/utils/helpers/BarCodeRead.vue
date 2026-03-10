@@ -126,20 +126,9 @@ onBeforeUnmount(() => {
   left: 10%;
   width: 80%;
   height: 3px;
+  top: 50%;
+  transform: translateY(-50%);
   background: red;
-  animation: scan 2s linear infinite;
   pointer-events: none;
-}
-
-@keyframes scan {
-  0% {
-    top: 25%;
-  }
-  50% {
-    top: 75%;
-  }
-  100% {
-    top: 25%;
-  }
 }
 </style>

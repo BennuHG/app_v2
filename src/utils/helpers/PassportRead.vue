@@ -195,7 +195,10 @@ onBeforeUnmount(() => {
   <div class="scanner-container">
     <div class="scanner-video-wrapper">
       <video ref="video" class="scanner-video" playsinline muted autoplay></video>
-      <div class="scan-line"></div>
+      <div class="mrz-frame-overlay">
+        <div class="mrz-frame-slot"></div>
+        <p class="mrz-frame-text">Coloca tu documento dentro del marco</p>
+      </div>
     </div>
 
     <div v-if="scannedMessage" class="text-warning mt-2">
@@ -229,25 +232,34 @@ onBeforeUnmount(() => {
   border-radius: 12px;
 }
 
-.scan-line {
+.mrz-frame-overlay {
   position: absolute;
-  left: 10%;
-  width: 80%;
-  height: 3px;
-  background: red;
-  animation: scan 2s linear infinite;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding-bottom: 12%;
   pointer-events: none;
 }
 
-@keyframes scan {
-  0% {
-    top: 25%;
-  }
-  50% {
-    top: 75%;
-  }
-  100% {
-    top: 25%;
-  }
+.mrz-frame-slot {
+  width: 80%;
+  height: 40%;
+  max-height: 100px;
+  border: 3px dashed rgba(255, 255, 255, 0.95);
+  border-radius: 8px;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+  flex-shrink: 0;
+}
+
+.mrz-frame-text {
+  margin: 10px 0 0;
+  padding: 6px 12px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font-size: 0.8rem;
+  border-radius: 8px;
+  text-align: center;
 }
 </style>

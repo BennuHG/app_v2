@@ -933,18 +933,82 @@
                                           </template>
                                         </div>
                                         <div v-else-if="field.type === 'idscan'" class="d-flex flex-column align-stretch">
-                                          <template v-if="idScanOpenFieldId !== field.id">
-                                            <v-btn variant="outlined" color="primary" @click="openIdScanner(field.id)"> Escanear </v-btn>
-                                            <div v-if="formData[field.id]" class="mt-2">
-                                              <v-chip color="success" size="small">{{ formData[field.id] }}</v-chip>
-                                            </div>
-                                          </template>
-                                          <template v-else>
+                                          <template v-if="idScanOpenFieldId === field.id">
                                             <PassportRead
                                               :field-id="field.id"
                                               @scanned="(val) => handleIdScanned(field.id, val)"
                                               @close="closeIdScanner()"
                                             />
+                                          </template>
+                                          <template v-else>
+                                            <v-btn variant="outlined" color="primary" @click="openIdScanner(field.id)"> Escanear </v-btn>
+
+                                            <template v-if="getIdScanData(field.id)">
+                                              <v-card variant="outlined" class="mt-3 pa-3">
+                                                <div class="text-caption text-medium-emphasis mb-2">
+                                                  Revisa y edita los datos del documento
+                                                </div>
+                                                <v-text-field
+                                                  v-model="formData[field.id].documentNumber"
+                                                  label="Número de documento"
+                                                  density="compact"
+                                                  variant="outlined"
+                                                  class="mb-2"
+                                                  hide-details
+                                                />
+                                                <v-text-field
+                                                  v-model="formData[field.id].lastName"
+                                                  label="Apellidos"
+                                                  density="compact"
+                                                  variant="outlined"
+                                                  class="mb-2"
+                                                  hide-details
+                                                />
+                                                <v-text-field
+                                                  v-model="formData[field.id].firstName"
+                                                  label="Nombre(s)"
+                                                  density="compact"
+                                                  variant="outlined"
+                                                  class="mb-2"
+                                                  hide-details
+                                                />
+                                                <v-text-field
+                                                  v-model="formData[field.id].birthDate"
+                                                  label="Fecha de nacimiento (YYMMDD)"
+                                                  density="compact"
+                                                  variant="outlined"
+                                                  placeholder="990326"
+                                                  class="mb-2"
+                                                  hide-details
+                                                />
+                                                <v-text-field
+                                                  v-model="formData[field.id].expirationDate"
+                                                  label="Fecha de vencimiento (YYMMDD)"
+                                                  density="compact"
+                                                  variant="outlined"
+                                                  placeholder="271231"
+                                                  class="mb-2"
+                                                  hide-details
+                                                />
+                                                <v-text-field
+                                                  v-model="formData[field.id].nationality"
+                                                  label="Nacionalidad"
+                                                  density="compact"
+                                                  variant="outlined"
+                                                  class="mb-2"
+                                                  hide-details
+                                                />
+                                                <v-btn
+                                                  variant="text"
+                                                  size="small"
+                                                  color="primary"
+                                                  class="mt-1"
+                                                  @click="openIdScanner(field.id)"
+                                                >
+                                                  Escanear de nuevo
+                                                </v-btn>
+                                              </v-card>
+                                            </template>
                                           </template>
                                         </div>
 

@@ -13,7 +13,7 @@ const results = ref([]);
 let stream = null;
 let intervalId = null;
 
-function cropMRZ(canvas, useBottomPercent = 0.5, binThreshold = 140, targetHeight = 120) {
+function cropMRZ(canvas, useBottomPercent = 0.5) {
   const width = canvas.width;
   const height = canvas.height;
   const mrzHeight = Math.floor(height * useBottomPercent);
@@ -24,27 +24,6 @@ function cropMRZ(canvas, useBottomPercent = 0.5, binThreshold = 140, targetHeigh
   const ctx = cropCanvas.getContext('2d');
   ctx.filter = 'grayscale(100%) contrast(200%)';
   ctx.drawImage(canvas, 0, height - mrzHeight, width, mrzHeight, 0, 0, width, mrzHeight);
-
-  const imageData = ctx.getImageData(0, 0, width, mrzHeight);
-  const data = imageData.data;
-  for (let i = 0; i < data.length; i += 4) {
-    const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-    const v = gray < binThreshold ? 0 : 255;
-    data[i] = data[i + 1] = data[i + 2] = v;
-  }
-  ctx.putImageData(imageData, 0, 0);
-
-  if (mrzHeight > targetHeight) {
-    const scale = targetHeight / mrzHeight;
-    const w = Math.round(width * scale);
-    const out = document.createElement('canvas');
-    out.width = w;
-    out.height = targetHeight;
-    const outCtx = out.getContext('2d');
-    outCtx.imageSmoothingEnabled = false;
-    outCtx.drawImage(cropCanvas, 0, 0, w, targetHeight);
-    return out;
-  }
 
   return cropCanvas;
 }

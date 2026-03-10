@@ -13,7 +13,7 @@ const results = ref([]);
 let stream = null;
 let intervalId = null;
 
-function cropMRZ(canvas, useBottomPercent = 0.5) {
+function cropMRZ(canvas, useBottomPercent = 0.5, binThreshold = 140, targetHeight = 120) {
   const width = canvas.width;
   const height = canvas.height;
   const mrzHeight = Math.floor(height * useBottomPercent);
@@ -24,6 +24,27 @@ function cropMRZ(canvas, useBottomPercent = 0.5) {
   const ctx = cropCanvas.getContext('2d');
   ctx.filter = 'grayscale(100%) contrast(200%)';
   ctx.drawImage(canvas, 0, height - mrzHeight, width, mrzHeight, 0, 0, width, mrzHeight);
+
+  const imageData = ctx.getImageData(0, 0, width, mrzHeight);
+  const data = imageData.data;
+  for (let i = 0; i < data.length; i += 4) {
+    const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    const v = gray < binThreshold ? 0 : 255;
+    data[i] = data[i + 1] = data[i + 2] = v;
+  }
+  ctx.putImageData(imageData, 0, 0);
+
+  if (mrzHeight > targetHeight) {
+    const scale = targetHeight / mrzHeight;
+    const w = Math.round(width * scale);
+    const out = document.createElement('canvas');
+    out.width = w;
+    out.height = targetHeight;
+    const outCtx = out.getContext('2d');
+    outCtx.imageSmoothingEnabled = false;
+    outCtx.drawImage(cropCanvas, 0, 0, w, targetHeight);
+    return out;
+  }
 
   return cropCanvas;
 }
@@ -86,19 +107,28 @@ async function analyzeMrz() {
 
     let parsed = null;
 
-    if (lines.length >= 3 && lines[0].length === 30 && lines[1].length === 30 && lines[2].length === 30) {
-      parsed = parse(lines.slice(0, 3));
-    } else if (lines.length >= 2 && lines[0].length === 44 && lines[1].length === 44) {
-      parsed = parse(lines.slice(0, 2));
-    } else if (lines.length >= 2 && lines[0].length === 36 && lines[1].length === 36) {
-      parsed = parse(lines.slice(0, 2));
-    } else if (lines.length >= 2 && lines[0].length === 30 && lines[1].length === 30) {
-      parsed = parse(lines.slice(0, 2));
+    let linesToParse = [...lines];
+    linesToParse = normalizeSex(linesToParse);
+
+    if (linesToParse.length >= 3 && linesToParse[0].length === 30 && linesToParse[1].length === 30 && linesToParse[2].length === 30) {
+      parsed = parse(linesToParse.slice(0, 3));
+    } else if (linesToParse.length >= 2 && linesToParse[0].length === 44 && linesToParse[1].length === 44) {
+      parsed = parse(linesToParse.slice(0, 2));
+    } else if (linesToParse.length >= 2 && linesToParse[0].length === 36 && linesToParse[1].length === 36) {
+      parsed = parse(linesToParse.slice(0, 2));
+    } else if (linesToParse.length >= 2 && linesToParse[0].length === 30 && linesToParse[1].length === 30) {
+      parsed = parse(linesToParse.slice(0, 2));
     }
 
     if (parsed) {
       const code = parsed.documentNumber || parsed.documentCode || JSON.stringify(parsed);
       results.value.push(code);
+      console.log(parsed);
+      parsed.details.forEach((d) => {
+        if (d.valid === false) {
+          console.log(d.field, d.error, d.ranges);
+        }
+      });
       emit('scanned', {
         documentNumber: parsed.documentNumber,
         format: parsed.format,
@@ -112,6 +142,22 @@ async function analyzeMrz() {
   } catch (e) {
     if (import.meta.env.DEV) console.warn('[PassportRead] parse error:', e.message);
   }
+}
+
+function normalizeSex(lines) {
+  if (lines.length >= 2 && lines[0].length === 30 && lines[1].length === 30) {
+    const l1 = lines[1];
+    if (l1[7] === 'H') {
+      lines[1] = l1.slice(0, 7) + 'M' + l1.slice(8);
+    }
+  }
+  return lines;
+}
+
+function acceptDocument(parsed) {
+  if (!parsed || parsed.format !== 'TD1') return !!parsed?.valid;
+
+  const errors = parsed.details.filter((d) => d.valid === false);
 }
 
 onMounted(async () => {

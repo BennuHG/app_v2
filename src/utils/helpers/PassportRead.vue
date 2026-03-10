@@ -162,11 +162,15 @@ function acceptDocument(parsed) {
 
 onMounted(async () => {
   try {
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+      video: isMobile ? { facingMode: 'environment' } : { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
     });
 
     video.value.srcObject = stream;
+    video.value.muted = true;
+    video.value.setAttribute('playsinline', '');
+    video.value.setAttribute('webkit-playsinline', '');
     await video.value.play();
 
     await new Promise((resolve) => {
@@ -174,7 +178,7 @@ onMounted(async () => {
       video.value.onloadedmetadata = resolve;
     });
 
-    worker.value = await createWorker('spa');
+    worker.value = await createWorker('eng');
     await worker.value.setParameters({
       tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<'
     });
@@ -211,7 +215,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="scanner-container">
     <div class="scanner-video-wrapper">
-      <video ref="video" class="scanner-video"></video>
+      <video ref="video" class="scanner-video" playsinline muted autoplay></video>
       <div class="scan-line"></div>
     </div>
 

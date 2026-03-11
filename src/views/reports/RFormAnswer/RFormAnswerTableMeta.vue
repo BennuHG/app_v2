@@ -27,7 +27,15 @@ const emit = defineEmits(['update:page', 'sort']);
             Folio
             <slot name="sort-icon" :column="'folio'" />
           </th>
-          <th @click="emit('sort', 'name')" class="cursor-pointer name-header">
+          <th
+            v-if="Number(organizationId) === 3 && Number(formId) === 5"
+            @click="emit('sort', 'direccion')"
+            class="cursor-pointer direccion-header"
+          >
+            Dirección
+            <slot name="sort-icon" :column="'direccion'" />
+          </th>
+          <th v-else @click="emit('sort', 'name')" class="cursor-pointer name-header">
             Usuario
             <slot name="sort-icon" :column="'name'" />
           </th>

@@ -182,6 +182,52 @@ const fetchAnswers = async () => {
       return joined || null;
     };
 
+    const extractAddress = (resp, fieldResponses) => {
+      const loc = resp.response?.location;
+      if (loc?.address && typeof loc.address === 'string') return loc.address;
+      if (resp.response?.address && typeof resp.response.address === 'string') return resp.response.address;
+      if (!Array.isArray(fieldResponses)) return null;
+      const geoField = fieldResponses.find((fr) => {
+        const type = fr?.field?.type || fr?.form_field?.type || '';
+        const label = (
+          fr?.field_label ||
+          fr?.fieldLabel ||
+          fr?.field_name ||
+          fr?.form_field?.label ||
+          fr?.field?.label ||
+          ''
+        ).toLowerCase();
+        return type === 'geolocation' || label.includes('dirección') || label.includes('direccion') || label.includes('address');
+      });
+      if (!geoField?.value) return null;
+      const v = geoField.value;
+      if (typeof v === 'string') {
+        try {
+          const parsed = JSON.parse(v);
+          if (parsed?.address) return parsed.address;
+          if (parsed?.street || parsed?.city)
+            return [
+              parsed.street,
+              parsed.outdoor_number,
+              parsed.neighborhood,
+              parsed.city,
+              parsed.state,
+              parsed.postal_code,
+              parsed.country
+            ]
+              .filter(Boolean)
+              .join(', ');
+        } catch {
+          return v;
+        }
+      }
+      if (typeof v === 'object' && v !== null) {
+        if (v.address) return v.address;
+        return [v.street, v.outdoor_number, v.neighborhood, v.city, v.state, v.postal_code, v.country].filter(Boolean).join(', ') || null;
+      }
+      return null;
+    };
+
     // Solo mostrar reportes, no respuestas sin reporte
     items.value = responses.flatMap((resp) => {
       // Validación para evitar errores si resp.response o resp.reports no existen
@@ -207,7 +253,8 @@ const fetchAnswers = async () => {
         score: resp.response.score,
         form_id: resp.response.form_id,
         additional_field_response: extractCIAC(fieldResponses),
-        origen: extractOrigen(fieldResponses)
+        origen: extractOrigen(fieldResponses),
+        address: extractAddress(resp, fieldResponses)
       };
 
       return resp.reports.map((report) => ({

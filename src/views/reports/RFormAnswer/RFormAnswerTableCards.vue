@@ -81,7 +81,9 @@ const asignReport = (answer) => {
             </span>
             <StatusChip v-if="answer.status" :status="answer.status" />
           </div>
-          <div class="font-weight-medium mb-1">{{ answer.name }}</div>
+          <div class="font-weight-medium mb-1">
+            {{ Number(organizationId) === 3 && Number(formId) === 5 ? answer.address || answer.name || '—' : answer.name }}
+          </div>
           <!-- Nueva sección para CIAC: Solo para organización 3 y formulario 5 -->
           <div v-if="Number(organizationId) === 3 && Number(formId) === 5" class="text-caption mb-1">
             <strong>CIAC:</strong>
@@ -125,7 +127,9 @@ const asignReport = (answer) => {
                   {{ answer.folio }}
                 </a>
               </td>
-              <td class="name-cell">{{ answer.name }}</td>
+              <td class="name-cell">
+                {{ Number(organizationId) === 3 && Number(formId) === 5 ? answer.address || answer.name || '—' : answer.name }}
+              </td>
               <!-- Nueva columna CIAC: Solo para organización 3 y formulario 5 -->
               <!-- Columna CIAC / Origen: Solo para organización 3 y formulario 5 -->
               <td v-if="Number(organizationId) === 3 && Number(formId) === 5" class="ciac-cell">

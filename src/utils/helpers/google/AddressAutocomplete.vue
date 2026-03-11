@@ -629,7 +629,10 @@ onMounted(() => {
           fields.value.latitude = lat;
           fields.value.longitude = lng;
           setMarkerPosition({ lat, lng }, true);
-          emit('update:parsedAddress', { ...fields.value });
+          reverseGeocode(lat, lng, (place) => {
+            if (place) fillFieldsFromPlace(place);
+            emit('update:parsedAddress', { ...fields.value });
+          });
         },
         (err) => {},
         { enableHighAccuracy: true }

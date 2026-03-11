@@ -29,7 +29,7 @@ const allPermissions = ref([]);
 const filteredPermissions = ref([]);
 
 // --- INTEGRACIÓN: permisos por default ---
-const defaultPermissions = ['organization.view', 'business.view', 'businessUnit.view'];
+const defaultPermissions = ['organization.view', 'business.view', 'businessUnit.view', 'report.update', 'report.view'];
 const selectedPermissions = ref([...defaultPermissions]);
 // --- FIN INTEGRACIÓN ---
 
